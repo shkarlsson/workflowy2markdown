@@ -24,8 +24,7 @@ for i, line in enumerate(lines):
     text = line.strip()[2:]
     
     if level == 0:
-        
-        tag = text
+        level_0 = text
         continue
     if level == 1:
         if i > 1:
@@ -36,10 +35,16 @@ for i, line in enumerate(lines):
         # Initializing or resetting the note
         note_rows = []
         title = text
+
+        # If title contains tags, extract them to tags and remove from title
+        if '#' in title:
+            title, *tags = title.split(' #')
+            tags = ['workflowy-import', level_0.lower()] + tags
+            tags = [tag.strip() for tag in tags]
         continue
     
     h1 = text
-    note_rows.append([tag, title, level-1, text])
+    note_rows.append([tags, title, level-1, text])
 
 
 #%% 
@@ -113,11 +118,8 @@ df = (
 
 for title, note_df in df.groupby('Title'):
     with open(export_dir / f'{title}.md', 'w') as f:
-        # Adding imported from workflowy tag
-        f.write('#WorkflowyImport ')
-
-        # Write the tag as a hashtag
-        f.write(f'#{note_df.Tag.iloc[0]}\n')
+        # Write the tags starting with a # and separated by spaces
+        f.write('#' + ' #'.join(note_df.Tag.iloc[0]) + '\n\n')
 
         # Write the note
         f.write(note_df.Output.str.cat(sep='\n'))
