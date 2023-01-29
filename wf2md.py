@@ -64,46 +64,47 @@ for i, line in enumerate(lines):
 
 #%% 
 
-# This decides which format should be used for each level of note, based on the max level of the note.
+# This decides which format should be used for each level of note, based on the max level of the note. The first item in the tuple is the prefix, and the second item is the suffix. I try to follow https://www.markdownguide.org/basic-syntax/ as much as possible.
+
 LEVEL_TO_FORMAT_MAP = {
     # In notes with only one level, that level should be plain text
-    1: {
-        1: '',
+        1: {
+        1: ['', ''],
     },
     # In notes with two levels, the first level should be a header and the second level should be plain text
     2: {
-        1: '# ',
-        2: '',
+        1: ['\n# ', '\n'],
+        2: ['', ''],
     },
     # In notes with three levels, the first level should be a header, the second level should be a subheader, and the third level should be plain text
     3: {
-        1: '# ',
-        2: '## ',
-        3: '',
+        1: ['\n# ', '\n'],
+        2: ['\n## ', '\n'],
+        3: ['', ''],
     },
     # In notes with four levels, level 1-3 should be as above, and level 4 should be bullet points
     4: {
-        1: '# ',
-        2: '## ',
-        3: '',
-        4: '* ',
+        1: ['\n# ', '\n'],
+        2: ['\n## ', '\n'],
+        3: ['', ''],
+        4: ['* ', ''],
     },
     # In notes with five levels, level 1-4 should be as above, and level 5 should be level 2 bullet points
     5: {
-        1: '# ',
-        2: '## ',
-        3: '',
-        4: '* ',
-        5: '\t* ',
+        1: ['\n# ', '\n'],
+        2: ['\n## ', '\n'],
+        3: ['', ''],
+        4: ['* ', ''],
+        5: ['\t* ', ''],
     },
     # In notes with six levels, level 1-3 should be headers, level 4 text and level 5-6 bullet points
     6: {
-        1: '# ',
-        2: '## ',
-        3: '### ',
-        4: '',
-        5: '* ',
-        6: '\t* ',
+        1: ['\n# ', '\n'],
+        2: ['\n## ', '\n'],
+        3: ['\n### ', '\n'],
+        4: ['', ''],
+        5: ['* ', ''],
+        6: ['\t* ', ''],
     },
 }
 
@@ -119,11 +120,12 @@ df = (
     
     # TODO: Figure out workflowy "mirrors" by identically named rows in different places in the tree and apply Obsidian's linkage between them instead.
     
-    # Assign the prefix for each row
-    .assign(Prefix=lambda x: x.apply(lambda row: LEVEL_TO_FORMAT_MAP[row.MaxLevel][row.Level], axis=1))
-    
+    # Assign the prefix and suffix for each row
+    .assign(Prefix=lambda x: x.apply(lambda row: LEVEL_TO_FORMAT_MAP[row.MaxLevel][row.Level][0], axis=1))
+    .assign(Suffix=lambda x: x.apply(lambda row: LEVEL_TO_FORMAT_MAP[row.MaxLevel][row.Level][1], axis=1))
+
     # Finalize the output text
-    .assign(Output=lambda x: x.Prefix + x.Text)
+    .assign(Output=lambda x: x.Prefix + x.Text + x.Suffix)
 
     # Replace "/" with "-" in titles because filenames cannot contain "/"
     .assign(Title=lambda x: x.Title.str.replace('/', '-'))
@@ -134,7 +136,7 @@ df = (
 for title, note_df in df.groupby('Title'):
     with open(export_dir / f'{title}.md', 'w') as f:
         # Write the tags starting with a # and separated by spaces
-        f.write('#' + ' #'.join(note_df.Tags.iloc[0]) + '\n\n')
+        f.write('#' + ' #'.join(note_df.Tags.iloc[0]) + '\n')
 
         # Write the note
         f.write(note_df.Output.str.cat(sep='\n'))
