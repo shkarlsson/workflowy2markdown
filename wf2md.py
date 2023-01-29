@@ -10,6 +10,10 @@ except IndexError:
     raise FileNotFoundError(f'No txt file found in {import_dir}. You need to export your Workflowy notes to txt first. See the README for instructions.')
 export_dir = root_dir / 'export'
 
+
+FORBIDDEN_FN_CHARS =  [':', '/']
+# These characters are supposedly forbidden on Windows: ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
+
 #%% Conversing nested list in txt to nested json
 
 with open(import_path, 'r') as f:
@@ -24,23 +28,34 @@ for i, line in enumerate(lines):
     text = line.strip()[2:]
     
     if level == 0:
-        level_0 = text
+        # Format string as Obsidian tag
+        tag = text.replace(' ', '-').replace('/', '-').lower()
         continue
     if level == 1:
         if i > 1:
             # Here, data for a complete note has been collected and we can create a dataframe for it.
-            note_df = pd.DataFrame(note_rows, columns=['Tag', 'Title', 'Level', 'Text'])
+            note_df = pd.DataFrame(note_rows, columns=['Tags', 'Title', 'Level', 'Text'])
             note_dfs.append(note_df)
         
-        # Initializing or resetting the note
+        
+
+        # Initializing/resetting the note rows
         note_rows = []
-        title = text
 
         # If title contains tags, extract them to tags and remove from title
-        if '#' in title:
-            title, *tags = title.split(' #')
-            tags = ['workflowy-import', level_0.lower()] + tags
-            tags = [tag.strip() for tag in tags]
+        if '#' in text:
+            title, *tags = text.split(' #')
+        else:
+            tags = []
+            title = text
+        
+        # Make title into a valid filename
+        for char in FORBIDDEN_FN_CHARS:
+            title = title.replace(char, '-')
+
+        tags = ['workflowy-import', tag] + tags
+        tags = [tag.strip() for tag in tags]
+        
         continue
     
     h1 = text
@@ -119,7 +134,7 @@ df = (
 for title, note_df in df.groupby('Title'):
     with open(export_dir / f'{title}.md', 'w') as f:
         # Write the tags starting with a # and separated by spaces
-        f.write('#' + ' #'.join(note_df.Tag.iloc[0]) + '\n\n')
+        f.write('#' + ' #'.join(note_df.Tags.iloc[0]) + '\n\n')
 
         # Write the note
         f.write(note_df.Output.str.cat(sep='\n'))
